@@ -5,31 +5,50 @@
 
 namespace xll {
 
-	class function {
+	struct function {
+		LOPERX operator()(const LPOPERX *ppa) const { return call(ppa); };
+		virtual ~function() { }
+	private:
+		virtual LOPERX call(const LPOPERX*) const = 0;
+	};
+
+	inline std::function<double(double)> wrap(const function& f)
+	{
+		return [f](double x) { OPERX x_(x); LPOPERX px(&x_); LOPERX y = f(&px); return y.val.num; };
+	}
+	
+	class udf : public function {
 		typedef traits<XLOPERX>::xword xword;
 
 		mutable OPERX arg;
 		std::vector<xword> index;
+		mutable std::vector<LPXLOPER> parg;
 	public:
-		function()
+		udf()
 		{ }
 		// pass in the address of the first argument on the call stack
-		function(double regid, LPOPERX* ppa)
+		udf(double regid, const LPOPERX* ppa)
 		{
 			const XAddIn<XLOPERX>* pai = XAddIn<XLOPERX>::Find(regid);
 			ensure (pai);
 			arg.resize(pai->Args().Arity() + 1, 1);
+			parg.resize(arg.size());
+
 			arg[0] = regid;
 			for (xword i = 1; i < arg.size(); ++i, ++ppa) {
 				arg[i] = *(*ppa); // peel args off the call stack
+
 				if (arg[i].xltype == xltypeMissing)
 					index.push_back(i);
 			}
 		}
-		~function()
+		udf(const udf&) = default;
+		udf& operator=(const udf&) = default;
+		virtual ~udf()
 		{ }
 
-		LOPERX call(LPOPERX* ppa) const {
+		LOPERX call(const LPOPERX* ppa) const {
+			// fill missing args
 			for (xword i = 0; i < index.size(); ++i) {
 				ensure ((*ppa)->xltype != xltypeMissing || !"arity mismatch");
 
@@ -38,7 +57,6 @@ namespace xll {
 			}
 			ensure ((*ppa)->xltype == xltypeMissing || !"arity mismatch");
 
-			std::vector<LPXLOPER> parg(arg.size());
 			for (xword i = 0; i < parg.size(); ++i)
 				parg[i] = &arg[i];
 
@@ -52,7 +70,38 @@ namespace xll {
 
 			return ret;
 		}
+	
 	};
+
+	namespace unary {
+	
+		class negate : public function {
+			udf f; // const udf& ???
+		public:
+			negate()
+			{ }
+			negate(udf _f)
+				: f(_f)
+			{ }
+			~negate()
+			{ }
+
+			LOPERX call(const LPOPERX* ppa)
+			{
+				LOPERX y = f.call(ppa);
+
+				if (y.xltype == xltypeNum)
+					y.val.num = -y.val.num;
+				else if (y.xltype == xltypeBool)
+					y.val.xbool = !y.val.xbool;
+				else
+					throw std::runtime_error("xll::unary::negate: must be number or boolean value");
+
+				return y;
+			}
+		};
+
+	} // unary
 
 } // xll
 

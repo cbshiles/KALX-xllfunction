@@ -4,7 +4,7 @@
 using namespace xll;
 
 static AddInX xai_function(
-	FunctionX(XLL_HANDLEX, _T("?xll_function"), _T("XLL.FUNCTION"))
+	FunctionX(XLL_HANDLEX, _T("?xll_function"), _T("XLL.BIND"))
 	.Arg(XLL_DOUBLEX, _T("RegId"), _T("is the register id of a function."))
 	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument to be curried."))
 	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument to be curried."))
@@ -25,7 +25,13 @@ HANDLEX WINAPI xll_function(double regid, LPOPERX pa)
 	handlex h;
 
 	try {
-		handle<function> H(new function(regid, &pa));
+//		handle<function> H(new udf(regid, &pa));
+		udf f(regid, &pa);
+		handle<std::function<LOPERX(const LPOPERX*)>> H(
+			new std::function<LOPERX(const LPOPERX*)>(
+				[f](const LPOPERX* ppa) -> LOPERX { return f.call(ppa); }
+			)
+		);
 
 		h = H.get();
 	}
@@ -36,10 +42,51 @@ HANDLEX WINAPI xll_function(double regid, LPOPERX pa)
 	return h;
 }
 
+static AddInX xai_function_add(
+	FunctionX(XLL_HANDLEX, _T("?xll_function_add"), _T("XLL.ADD"))
+	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle to a function."))
+	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle to a function."))
+	.Uncalced()
+	.Category(_T("XLL"))
+	.FunctionHelp(_T("Return a handle to the sum of functions."))
+	.Documentation(_T(""))
+);
+HANDLEX WINAPI xll_function_add(HANDLEX f, HANDLEX g)
+{
+#pragma XLLEXPORT
+	handlex h;
+
+	try {
+		handle<std::function<LOPERX(const LPOPERX*)>> pf(f);
+		handle<std::function<LOPERX(const LPOPERX*)>> pg(g);
+		handle<std::function<LOPERX(const LPOPERX*)>> ph(
+			new std::function<LOPERX(const LPOPERX*)>(
+				[pf,pg](const LPOPERX* ppa) -> LOPERX { 
+					LOPERX f = (*pf)(ppa);
+					LOPERX g = (*pg)(ppa); 
+					ensure (f.xltype == xltypeNum);
+					ensure (g.xltype == xltypeNum);
+
+					f.val.num += g.val.num;
+
+					return f;
+				}
+			)
+		);
+
+		h = ph.get();
+	}
+	catch (const std::exception& ex) {
+		XLL_ERROR(ex.what());
+	}
+
+	return h;
+}
+
 // allow for multiple arguments???
 static AddInX xai_function_call(
-	FunctionX(XLL_LPOPERX, _T("?xll_function_call"), _T("XLL.FUNCTION.CALL"))
-	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle returned by XLL.FUNCTION."))
+	FunctionX(XLL_LPOPERX, _T("?xll_function_call"), _T("XLL.CALL"))
+	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle returned by XLL.BIND."))
 	.Arg(XLL_LPOPERX, _T("Argument"), _T("is an argument to Function."))
 	.Arg(XLL_LPOPERX, _T("Argument"), _T("is an argument to Function."))
 	.Arg(XLL_LPOPERX, _T("Argument"), _T("is an argument to Function."))
@@ -57,9 +104,9 @@ LPOPERX WINAPI xll_function_call(HANDLEX f, LPOPERX pa)
 	static OPERX y;
 
 	try {
-		handle<function> F(f);
+		handle<std::function<LOPERX(const LPOPERX*)>> F(f);
 
-		y = F->call(&pa);
+		y = (*F)(&pa);
 
 	}
 	catch (const std::exception& ex) {
@@ -71,7 +118,7 @@ LPOPERX WINAPI xll_function_call(HANDLEX f, LPOPERX pa)
 	return &y;
 }
 
-// XLL.FUNCTION(IDENTITY, Constant) creates a constant function.
+// XLL.BIND(IDENTITY, Constant) creates a constant function.
 static AddInX xai_identity(
 	FunctionX(XLL_LPOPERX, _T("?xll_identity"), _T("IDENTITY"))
 	.Arg(XLL_LPOPERX, _T("Argument"), _T("is the argument to be returned."))
@@ -98,52 +145,6 @@ double WINAPI xll_mul(double x, double y)
 }
 
 /*
-static AddInX xai_constant(
-	FunctionX(XLL_HANDLEX, _T("?xll_constant"), _T("XLL.FUNCTION.CONSTANT"))
-	.Arg(XLL_LPOPERX, _T("Constant"), _T("is a cell or range of cells."))
-	.Uncalced()
-	.Category(_T("XLL")) 
-	.FunctionHelp(_T("Return a handle to a function that returns Constant."))
-);
-HANDLEX WINAPI xll_constant(LPOPERX pc)
-{
-#pragma XLLEXPORT
-	handlex h;
-
-	try {
-		handle<function> h_(new function([pc](const OPERX&) { return *pc; }));
-
-		h = h_.get();
-	}
-	catch (const std::exception& ex) {
-		XLL_ERROR(ex.what());
-	}
-
-	return h;
-}
-
-static AddInX xai_identity(
-	FunctionX(XLL_HANDLEX, _T("?xll_identity"), _T("XLL.FUNCTION.IDENTITY"))
-	.Uncalced()
-	.Category(_T("XLL"))
-	.FunctionHelp(_T("Return Argument."))
-);
-HANDLEX WINAPI xll_identity(LPOPERX px)
-{
-#pragma XLLEXPORT
-	handlex h;
-
-	try {
-		handle<function> h_(new function([](const OPERX& x) { return x; }));
-
-		h = h_.get();
-	}
-	catch (const std::exception& ex) {
-		XLL_ERROR(ex.what());
-	}
-
-	return h;
-}
 
 #ifdef _DEBUG
 
