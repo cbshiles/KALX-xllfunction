@@ -1,4 +1,7 @@
 // function.h - function: OPER^n -> OPER
+/*
+Assemble OPERs? RANGE(o0, o1, ...)
+*/
 #pragma once
 //#include <functional>
 #include "../xll8/xll/xll.h"
@@ -6,16 +9,15 @@
 namespace xll {
 
 	struct function {
+		// call from call stack
 		LOPERX operator()(const LPOPERX *ppa) const { return call(ppa); };
+		// call using multi
+		LOPERX operator()(const OPERX& a) const { return call(a); }
 		virtual ~function() { }
 	private:
 		virtual LOPERX call(const LPOPERX*) const = 0;
+		virtual LOPERX call(const OPERX&) const = 0;
 	};
-
-	inline std::function<double(double)> wrap(const function& f)
-	{
-		return [f](double x) { OPERX x_(x); LPOPERX px(&x_); LOPERX y = f(&px); return y.val.num; };
-	}
 	
 	class udf : public function {
 		typedef traits<XLOPERX>::xword xword;
@@ -47,7 +49,13 @@ namespace xll {
 		virtual ~udf()
 		{ }
 
-		LOPERX call(const LPOPERX* ppa) const {
+		xword arity(void) const
+		{
+			return arg.size() - 1;
+		}
+
+		LOPERX call(const LPOPERX* ppa) const 
+		{
 			// fill missing args
 			for (xword i = 0; i < index.size(); ++i) {
 				ensure ((*ppa)->xltype != xltypeMissing || !"arity mismatch");
@@ -70,17 +78,46 @@ namespace xll {
 
 			return ret;
 		}
+		LOPERX call(const OPERX& o) const 
+		{
+			if (arity() == 1 && index.size() == 1) {
+				// handle functions with one arg of type multi
+				arg[1] = o;
+			}
+			else {
+				ensure (o.size() == index.size());
+				// fill missing args
+				for (xword i = 0; i < index.size(); ++i) {
+					ensure (o[i].xltype != xltypeMissing || !"arity mismatch");
+
+					arg[index[i]] = o[i];
+				}
+			}
+
+			for (xword i = 0; i < parg.size(); ++i)
+				parg[i] = &arg[i];
+
+			LOPERX ret;
+			ensure (xlretSuccess == xll::traits<XLOPERX>::Excelv(xlUDF, &ret, parg.size(), &parg[0]));
+
+			// unfill missing args
+			for (xword i = 0; i < index.size(); ++i) {
+				arg[index[i]] = OPERX(xltype::Missing);
+			}
+
+			return ret;
+		}
 	
 	};
 
 	namespace unary {
-	
+		
 		class negate : public function {
-			udf f; // const udf& ???
+			const function& f; // const udf& ???
 		public:
 			negate()
 			{ }
-			negate(udf _f)
+			negate(const function& _f)
 				: f(_f)
 			{ }
 			~negate()
@@ -88,7 +125,7 @@ namespace xll {
 
 			LOPERX call(const LPOPERX* ppa)
 			{
-				LOPERX y = f.call(ppa);
+				LOPERX y = f(ppa);
 
 				if (y.xltype == xltypeNum)
 					y.val.num = -y.val.num;

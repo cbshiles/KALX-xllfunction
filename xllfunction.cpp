@@ -3,8 +3,53 @@
 
 using namespace xll;
 
-static AddInX xai_function(
-	FunctionX(XLL_HANDLEX, _T("?xll_function"), _T("XLL.BIND"))
+static AddInX xai_range(
+	FunctionX(XLL_LPOPERX, _T("?xll_range"), _T("RANGE"))
+	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument."))
+	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument."))
+	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument."))
+	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument."))
+	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument."))
+	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument."))
+	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument."))
+	.Category(_T("XLL"))
+	.FunctionHelp(_T("Return a one column range consisting of Args."))
+	.Documentation(_T(""))
+);
+LPOPERX WINAPI xll_range(LPOPERX pa)
+{
+#pragma XLLEXPORT
+	static OPERX o;
+
+	try {
+		o = OPERX();
+
+		LPOPERX* ppa = &pa;
+		while ((*ppa)->xltype != xltypeMissing) {
+			if ((*ppa)->xltype == xltypeMulti) {
+				// range.set???
+				// hierarchical multi
+				o.push_back(OPERX(xltype::Missing));
+				o.back() = *(*ppa);
+			}
+			else {
+				o.push_back(*(*ppa));
+			}
+
+			++ppa;
+		}
+	}
+	catch (const std::exception& ex) {
+		XLL_ERROR(ex.what());
+
+		o = OPERX(xlerr::NA);
+	}
+
+	return &o;
+}
+}
+static AddInX xai_function_bind(
+	FunctionX(XLL_HANDLEX, _T("?xll_function_bind"), _T("XLL.BIND"))
 	.Arg(XLL_DOUBLEX, _T("RegId"), _T("is the register id of a function."))
 	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument to be curried."))
 	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument to be curried."))
@@ -19,19 +64,13 @@ static AddInX xai_function(
 	.FunctionHelp(_T("Return a handle to a function wot curried args."))
 	.Documentation(_T(""))
 );
-HANDLEX WINAPI xll_function(double regid, LPOPERX pa)
+HANDLEX WINAPI xll_function_bind(double regid, LPOPERX pa)
 {
 #pragma XLLEXPORT
 	handlex h;
 
 	try {
-//		handle<function> H(new udf(regid, &pa));
-		udf f(regid, &pa);
-		handle<std::function<LOPERX(const LPOPERX*)>> H(
-			new std::function<LOPERX(const LPOPERX*)>(
-				[f](const LPOPERX* ppa) -> LOPERX { return f.call(ppa); }
-			)
-		);
+		handle<function> H(new udf(regid, &pa));
 
 		h = H.get();
 	}
@@ -41,7 +80,7 @@ HANDLEX WINAPI xll_function(double regid, LPOPERX pa)
 
 	return h;
 }
-
+/*
 static AddInX xai_function_add(
 	FunctionX(XLL_HANDLEX, _T("?xll_function_add"), _T("XLL.ADD"))
 	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle to a function."))
@@ -82,7 +121,7 @@ HANDLEX WINAPI xll_function_add(HANDLEX f, HANDLEX g)
 
 	return h;
 }
-
+*/
 // allow for multiple arguments???
 static AddInX xai_function_call(
 	FunctionX(XLL_LPOPERX, _T("?xll_function_call"), _T("XLL.CALL"))
@@ -97,6 +136,10 @@ static AddInX xai_function_call(
 	.Arg(XLL_LPOPERX, _T("Argument"), _T("is an argument to Function."))
 	.Category(_T("XLL"))
 	.FunctionHelp(_T("Retun the value of the function using the supplied arguments."))
+	.Documentation(
+		_T("If only one argument of type Multi is passed then assume then ")
+		_T("Assume the range contains the individual arguments. ")
+	)
 );
 LPOPERX WINAPI xll_function_call(HANDLEX f, LPOPERX pa)
 {
@@ -104,9 +147,12 @@ LPOPERX WINAPI xll_function_call(HANDLEX f, LPOPERX pa)
 	static OPERX y;
 
 	try {
-		handle<std::function<LOPERX(const LPOPERX*)>> F(f);
+		handle<function> F(f);
 
-		y = (*F)(&pa);
+		if (pa->xltype == xltypeMulti && (&pa)[1]->xltype == xltypeMissing)
+			y = (*F)(*pa);
+		else
+			y = (*F)(&pa);
 
 	}
 	catch (const std::exception& ex) {
@@ -144,24 +190,42 @@ double WINAPI xll_mul(double x, double y)
 	return x*y;
 }
 
-/*
-
 #ifdef _DEBUG
 
 int xll_test_function(void)
 {
 	try {
-		function f([](OPERX x) { x.val.num += 1; return x; });
-		function g([](OPERX x) { x.val.num *= 2; return x; });
-		function h = f.compose(g);
+		// phony up an arg stack
+		OPERX a[3];
+		LPOPERX pa[3];
+		pa[0] = &a[0];
+		pa[1] = &a[1];
+		pa[2] = &a[2];
 
-		OPERX y;
-		y = h(OPERX(1));
-		ensure (y == 3);
+		a[0] = OPERX(xltype::Missing);
+		a[1] = OPERX(xltype::Missing);
+		a[2] = OPERX(xltype::Missing);
+		udf f0(xai_mul.RegisterId(), pa);
+		a[0] = 2;
+		a[1] = 3;
+		OPERX o = f0.call(pa);
+		ensure (o == 6);
 
-		h = f + g;
-		y = h(OPER(1));
-		ensure (y == 4);
+		a[0] = OPERX(4);
+		a[1] = OPERX(xltype::Missing);
+		udf f1(xai_mul.RegisterId(), pa);
+		a[0] = 5;
+		a[1] = OPERX(xltype::Missing);
+		o = f1.call(pa);
+		ensure (o == 20);
+
+		a[0] = OPERX(6);
+		a[1] = OPERX(7);
+		a[2] = OPERX(xltype::Missing);
+		udf f2(xai_mul.RegisterId(), pa);
+		a[0] = OPERX(xltype::Missing);
+		o = f2.call(pa);
+		ensure (o == 42);
 	}
 	catch (const std::exception& ex) {
 		XLL_ERROR(ex.what());
@@ -174,5 +238,3 @@ int xll_test_function(void)
 static Auto<OpenAfterX> xao_test_function(xll_test_function);
 
 #endif // _DEBUG
-
-*/
