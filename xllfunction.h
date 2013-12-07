@@ -8,17 +8,140 @@ Assemble OPERs? RANGE(o0, o1, ...)
 
 namespace xll {
 
+	namespace range {
+
+		// assemble pointers into a multi
+		inline OPERX grab(const LPOPERX* ppo)
+		{
+			OPERX o;
+
+			while ((*ppo)->xltype != xltypeMissing) {
+				if ((*ppo)->xltype == xltypeMulti) {
+					o.push_back(OPERX(xltype::Missing));// push_back(new handle<OPER>(*(*pro))); ???
+					o.back() = (*(*ppo));
+				}
+				else {
+					o.push_back(*(*ppo));
+				}
+				++ppo;
+			}
+
+			return o;
+		}
+		// replace heirarchical multi with handles
+		void pack(OPERX& o)
+		{
+			for (traits<XLOPERX>::xword i = 0; i < o.size(); ++i) {
+				if (o[i].xltype == xltypeMulti) {
+					o[i] = handle<OPERX>(new OPERX(o[i])).get();
+				}
+			}
+		}
+		// replace handles with multis
+		void unpack(OPERX& o)
+		{
+			for (traits<XLOPERX>::xword i = 0; i < o.size(); ++i) {
+				if (o[i].xltype == xltypeNum) {
+					try {
+						handle<OPERX> oi(o[i].val.num);
+						o[i] = *oi;
+					}
+					catch (...) { }; // not a handle
+				}
+			}
+		}
+	}
+
+	// JSON like object.
+	// First row are keys, second row are objects
+	class object {
+		typedef traits<XLOPERX>::xword xword;
+
+		xword n_;
+		OPERX* pk_;
+		OPERX* pv_;
+	public:
+		object()
+			: pk_(0), pv_(0), n_(0)
+		{ }
+		object(const object&) = default;
+		object& operator=(const object&) = default;
+		~object()
+		{ }
+
+		object(OPERX& o)
+			: pk_(&o(0,0)), pv_(&o(1,0)), n_(o.columns())
+		{
+			ensure (o.xltype == xltypeMulti);
+			ensure (o.rows() == 2);
+		}
+		object(OPERX& k, OPER& v)
+			: pk_(&k[0]), pv_(&v[0]), n_(k.size())
+		{
+			ensure (k.size() == v.size());
+		}
+
+		xword size(void) const
+		{
+			return n_;
+		}
+		xword find(const OPERX& key) const
+		{
+			xword i;
+
+			// not efficent!!!
+			for (i = 0; i < n_; ++i) {
+				if ((*pk_)[i] == key)
+					break;
+			}
+
+			return i;
+		}
+		bool has(const OPERX& key) const
+		{
+			return find(key) < size();
+		}
+
+		OPERX& operator[](const OPERX& key)
+		{
+			return (*pv_)[find(key)];
+		}
+		const OPERX& operator[](const OPERX& key) const
+		{
+			return (*pv_)[find(key)];
+		}
+	};
+
 	struct function {
+
 		// call from call stack
-		LOPERX operator()(const LPOPERX *ppa) const { return call(ppa); };
+		OPERX operator()(const LPOPERX *ppa) const { return call(ppa); };
 		// call using multi
-		LOPERX operator()(const OPERX& a) const { return call(a); }
+		OPERX operator()(const OPERX& a) const { return call(a); }
 		virtual ~function() { }
 	private:
-		virtual LOPERX call(const LPOPERX*) const = 0;
-		virtual LOPERX call(const OPERX&) const = 0;
+		virtual OPERX call(const LPOPERX*) const = 0;
+		virtual OPERX call(const OPERX&) const = 0;
 	};
 	
+	class lambda : public function {
+		const std::function<OPERX(const OPERX&)>& f_;
+	public:
+		lambda(const std::function<OPERX(const OPERX&)>& f)
+			: f_(f)
+		{ }
+		~lambda()
+		{ }
+		OPERX call(const LPOPERX* ppo)
+		{
+			return OPERX();
+		}
+		OPERX call(const OPERX& o)
+		{
+			return f_(o);
+		}
+	};
+
 	class udf : public function {
 		typedef traits<XLOPERX>::xword xword;
 
@@ -54,7 +177,8 @@ namespace xll {
 			return arg.size() - 1;
 		}
 
-		LOPERX call(const LPOPERX* ppa) const 
+
+		OPERX call(const LPOPERX* ppa) const 
 		{
 			// fill missing args
 			for (xword i = 0; i < index.size(); ++i) {
@@ -78,7 +202,7 @@ namespace xll {
 
 			return ret;
 		}
-		LOPERX call(const OPERX& o) const 
+		OPERX call(const OPERX& o) const 
 		{
 			if (arity() == 1 && index.size() == 1) {
 				// handle functions with one arg of type multi
@@ -109,36 +233,6 @@ namespace xll {
 		}
 	
 	};
-
-	namespace unary {
-		
-		class negate : public function {
-			const function& f; // const udf& ???
-		public:
-			negate()
-			{ }
-			negate(const function& _f)
-				: f(_f)
-			{ }
-			~negate()
-			{ }
-
-			LOPERX call(const LPOPERX* ppa)
-			{
-				LOPERX y = f(ppa);
-
-				if (y.xltype == xltypeNum)
-					y.val.num = -y.val.num;
-				else if (y.xltype == xltypeBool)
-					y.val.xbool = !y.val.xbool;
-				else
-					throw std::runtime_error("xll::unary::negate: must be number or boolean value");
-
-				return y;
-			}
-		};
-
-	} // unary
 
 } // xll
 

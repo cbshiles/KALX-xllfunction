@@ -47,7 +47,7 @@ LPOPERX WINAPI xll_range(LPOPERX pa)
 
 	return &o;
 }
-}
+
 static AddInX xai_function_bind(
 	FunctionX(XLL_HANDLEX, _T("?xll_function_bind"), _T("XLL.BIND"))
 	.Arg(XLL_DOUBLEX, _T("RegId"), _T("is the register id of a function."))
@@ -96,13 +96,13 @@ HANDLEX WINAPI xll_function_add(HANDLEX f, HANDLEX g)
 	handlex h;
 
 	try {
-		handle<std::function<LOPERX(const LPOPERX*)>> pf(f);
-		handle<std::function<LOPERX(const LPOPERX*)>> pg(g);
-		handle<std::function<LOPERX(const LPOPERX*)>> ph(
-			new std::function<LOPERX(const LPOPERX*)>(
-				[pf,pg](const LPOPERX* ppa) -> LOPERX { 
-					LOPERX f = (*pf)(ppa);
-					LOPERX g = (*pg)(ppa); 
+		handle<std::function<OPERX(const LPOPERX*)>> pf(f);
+		handle<std::function<OPERX(const LPOPERX*)>> pg(g);
+		handle<std::function<OPERX(const LPOPERX*)>> ph(
+			new std::function<OPERX(const LPOPERX*)>(
+				[pf,pg](const LPOPERX* ppa) -> OPERX { 
+					OPERX f = (*pf)(ppa);
+					OPERX g = (*pg)(ppa); 
 					ensure (f.xltype == xltypeNum);
 					ensure (g.xltype == xltypeNum);
 
@@ -192,40 +192,48 @@ double WINAPI xll_mul(double x, double y)
 
 #ifdef _DEBUG
 
+typedef traits<XLOPERX>::xword xword;
+
+void xll_test_range()
+{
+	// phony up an arg stack
+	OPERX a[3];
+	LPOPERX pa[3];
+	pa[0] = &a[0];
+	pa[1] = &a[1];
+	pa[2] = &a[2];
+
+	a[0] = OPERX(xltype::Missing);
+	a[1] = OPERX(xltype::Missing);
+	a[2] = OPERX(xltype::Missing);
+	udf f0(xai_mul.RegisterId(), pa);
+	a[0] = 2;
+	a[1] = 3;
+	OPERX o = f0.call(pa);
+	ensure (o == 6);
+
+	a[0] = OPERX(4);
+	a[1] = OPERX(xltype::Missing);
+	udf f1(xai_mul.RegisterId(), pa);
+	a[0] = 5;
+	a[1] = OPERX(xltype::Missing);
+	o = f1.call(pa);
+	ensure (o == 20);
+
+	a[0] = OPERX(6);
+	a[1] = OPERX(7);
+	a[2] = OPERX(xltype::Missing);
+	udf f2(xai_mul.RegisterId(), pa);
+	a[0] = OPERX(xltype::Missing);
+	o = f2.call(pa);
+	ensure (o == 42);
+
+}
+
 int xll_test_function(void)
 {
 	try {
-		// phony up an arg stack
-		OPERX a[3];
-		LPOPERX pa[3];
-		pa[0] = &a[0];
-		pa[1] = &a[1];
-		pa[2] = &a[2];
-
-		a[0] = OPERX(xltype::Missing);
-		a[1] = OPERX(xltype::Missing);
-		a[2] = OPERX(xltype::Missing);
-		udf f0(xai_mul.RegisterId(), pa);
-		a[0] = 2;
-		a[1] = 3;
-		OPERX o = f0.call(pa);
-		ensure (o == 6);
-
-		a[0] = OPERX(4);
-		a[1] = OPERX(xltype::Missing);
-		udf f1(xai_mul.RegisterId(), pa);
-		a[0] = 5;
-		a[1] = OPERX(xltype::Missing);
-		o = f1.call(pa);
-		ensure (o == 20);
-
-		a[0] = OPERX(6);
-		a[1] = OPERX(7);
-		a[2] = OPERX(xltype::Missing);
-		udf f2(xai_mul.RegisterId(), pa);
-		a[0] = OPERX(xltype::Missing);
-		o = f2.call(pa);
-		ensure (o == 42);
+		xll_test_range();
 	}
 	catch (const std::exception& ex) {
 		XLL_ERROR(ex.what());
@@ -237,4 +245,6 @@ int xll_test_function(void)
 }
 static Auto<OpenAfterX> xao_test_function(xll_test_function);
 
+
 #endif // _DEBUG
+
