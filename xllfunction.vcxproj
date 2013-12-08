@@ -85,9 +85,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="xllfunction.h" />
+    <ClInclude Include="xllrange.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="xllfunction.cpp" />
+    <ClCompile Include="xllrange.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\xll8\xll.vcxproj">

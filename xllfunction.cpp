@@ -3,51 +3,6 @@
 
 using namespace xll;
 
-static AddInX xai_range(
-	FunctionX(XLL_LPOPERX, _T("?xll_range"), _T("RANGE"))
-	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument."))
-	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument."))
-	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument."))
-	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument."))
-	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument."))
-	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument."))
-	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument."))
-	.Category(_T("XLL"))
-	.FunctionHelp(_T("Return a one column range consisting of Args."))
-	.Documentation(_T(""))
-);
-LPOPERX WINAPI xll_range(LPOPERX pa)
-{
-#pragma XLLEXPORT
-	static OPERX o;
-
-	try {
-		o = OPERX();
-
-		LPOPERX* ppa = &pa;
-		while ((*ppa)->xltype != xltypeMissing) {
-			if ((*ppa)->xltype == xltypeMulti) {
-				// range.set???
-				// hierarchical multi
-				o.push_back(OPERX(xltype::Missing));
-				o.back() = *(*ppa);
-			}
-			else {
-				o.push_back(*(*ppa));
-			}
-
-			++ppa;
-		}
-	}
-	catch (const std::exception& ex) {
-		XLL_ERROR(ex.what());
-
-		o = OPERX(xlerr::NA);
-	}
-
-	return &o;
-}
-
 static AddInX xai_function_bind(
 	FunctionX(XLL_HANDLEX, _T("?xll_function_bind"), _T("XLL.BIND"))
 	.Arg(XLL_DOUBLEX, _T("RegId"), _T("is the register id of a function."))
@@ -70,48 +25,7 @@ HANDLEX WINAPI xll_function_bind(double regid, LPOPERX pa)
 	handlex h;
 
 	try {
-		handle<function> H(new udf(regid, &pa));
-
-		h = H.get();
-	}
-	catch (const std::exception& ex) {
-		XLL_ERROR(ex.what());
-	}
-
-	return h;
-}
-/*
-static AddInX xai_function_add(
-	FunctionX(XLL_HANDLEX, _T("?xll_function_add"), _T("XLL.ADD"))
-	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle to a function."))
-	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle to a function."))
-	.Uncalced()
-	.Category(_T("XLL"))
-	.FunctionHelp(_T("Return a handle to the sum of functions."))
-	.Documentation(_T(""))
-);
-HANDLEX WINAPI xll_function_add(HANDLEX f, HANDLEX g)
-{
-#pragma XLLEXPORT
-	handlex h;
-
-	try {
-		handle<std::function<OPERX(const LPOPERX*)>> pf(f);
-		handle<std::function<OPERX(const LPOPERX*)>> pg(g);
-		handle<std::function<OPERX(const LPOPERX*)>> ph(
-			new std::function<OPERX(const LPOPERX*)>(
-				[pf,pg](const LPOPERX* ppa) -> OPERX { 
-					OPERX f = (*pf)(ppa);
-					OPERX g = (*pg)(ppa); 
-					ensure (f.xltype == xltypeNum);
-					ensure (g.xltype == xltypeNum);
-
-					f.val.num += g.val.num;
-
-					return f;
-				}
-			)
-		);
+		handle<function> ph(new udf(regid, &pa));
 
 		h = ph.get();
 	}
@@ -121,7 +35,7 @@ HANDLEX WINAPI xll_function_add(HANDLEX f, HANDLEX g)
 
 	return h;
 }
-*/
+
 // allow for multiple arguments???
 static AddInX xai_function_call(
 	FunctionX(XLL_LPOPERX, _T("?xll_function_call"), _T("XLL.CALL"))
@@ -137,8 +51,8 @@ static AddInX xai_function_call(
 	.Category(_T("XLL"))
 	.FunctionHelp(_T("Retun the value of the function using the supplied arguments."))
 	.Documentation(
-		_T("If only one argument of type Multi is passed then assume then ")
-		_T("Assume the range contains the individual arguments. ")
+		_T("If only one argument of type Multi is passed then assume  ")
+		_T("that range contains the individual arguments. ")
 	)
 );
 LPOPERX WINAPI xll_function_call(HANDLEX f, LPOPERX pa)
@@ -147,12 +61,12 @@ LPOPERX WINAPI xll_function_call(HANDLEX f, LPOPERX pa)
 	static OPERX y;
 
 	try {
-		handle<function> F(f);
+		handle<function> pf(f);
 
 		if (pa->xltype == xltypeMulti && (&pa)[1]->xltype == xltypeMissing)
-			y = (*F)(*pa);
+			y = (*pf)(*pa);
 		else
-			y = (*F)(&pa);
+			y = (*pf)(&pa);
 
 	}
 	catch (const std::exception& ex) {
@@ -164,7 +78,35 @@ LPOPERX WINAPI xll_function_call(HANDLEX f, LPOPERX pa)
 	return &y;
 }
 
-// XLL.BIND(IDENTITY, Constant) creates a constant function.
+static AddInX xai_function_add(
+	FunctionX(XLL_HANDLEX, _T("?xll_function_add"), _T("XLL.ADD"))
+	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle to a function."))
+	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle to a function."))
+	.Uncalced()
+	.Category(_T("XLL"))
+	.FunctionHelp(_T("Return a handle to the sum of functions."))
+	.Documentation(_T(""))
+);
+HANDLEX WINAPI xll_function_add(HANDLEX f, HANDLEX g)
+{
+#pragma XLLEXPORT
+	handlex h;
+
+	try {
+		handle<function> pf(f);
+		handle<function> pg(g);
+
+		handle<function> ph(new add(*pf, *pg));
+
+		h = ph.get();
+	}
+	catch (const std::exception& ex) {
+		XLL_ERROR(ex.what());
+	}
+
+	return h;
+}
+
 static AddInX xai_identity(
 	FunctionX(XLL_LPOPERX, _T("?xll_identity"), _T("IDENTITY"))
 	.Arg(XLL_LPOPERX, _T("Argument"), _T("is the argument to be returned."))
@@ -176,7 +118,53 @@ LPOPERX WINAPI xll_identity(LPOPERX px)
 #pragma XLLEXPORT
 	return px;
 }
+static AddInX xai_constant(
+	FunctionX(XLL_HANDLEX, _T("?xll_constant"), _T("CONSTANT"))
+	.Arg(XLL_LPOPERX, _T("Argument"), _T("is the constant value of the function returned."))
+	.Uncalced()
+	.Category(_T("XLL"))
+	.FunctionHelp(_T("Return a handle to a constant function."))
+);
+HANDLEX WINAPI xll_constant(const LPOPERX px)
+{
+#pragma XLLEXPORT
+	handlex h;
 
+	try {
+		handle<function> ph(new udf(xai_identity.RegisterId(), *px));
+
+		h = ph.get();
+	}
+	catch (const std::exception& ex) {
+		XLL_ERROR(ex.what());
+	}
+
+	return h;
+}
+static AddInX xai_add(
+	FunctionX(XLL_DOUBLEX, _T("?xll_add"), _T("add"))
+	.Num(_T("x"), _T("is the first number of the sum."))
+	.Num(_T("y"), _T("is the second number of the sum."))
+	.Category(_T("XLL"))
+	.FunctionHelp(_T("Return the sum of the arguments"))
+);
+double WINAPI xll_add(double x, double y)
+{
+#pragma XLLEXPORT
+	return x + y;
+}
+static AddInX xai_sub(
+	FunctionX(XLL_DOUBLEX, _T("?xll_sub"), _T("SUB"))
+	.Num(_T("x"), _T("is the first number of the difference."))
+	.Num(_T("y"), _T("is the second number of the difference."))
+	.Category(_T("XLL"))
+	.FunctionHelp(_T("Return the difference of the arguments"))
+);
+double WINAPI xll_sub(double x, double y)
+{
+#pragma XLLEXPORT
+	return x - y;
+}
 static AddInX xai_mul(
 	FunctionX(XLL_DOUBLEX, _T("?xll_mul"), _T("MUL"))
 	.Num(_T("x"), _T("is the first number of the product."))
@@ -188,6 +176,29 @@ double WINAPI xll_mul(double x, double y)
 {
 #pragma XLLEXPORT
 	return x*y;
+}
+static AddInX xai_div(
+	FunctionX(XLL_DOUBLEX, _T("?xll_div"), _T("DIV"))
+	.Num(_T("x"), _T("is the first number of the quotient."))
+	.Num(_T("y"), _T("is the second number of the quotient."))
+	.Category(_T("XLL"))
+	.FunctionHelp(_T("Return the quotient of the arguments"))
+);
+double WINAPI xll_div(double x, double y)
+{
+#pragma XLLEXPORT
+	return x/y;
+}
+static AddInX xai_neg(
+	FunctionX(XLL_DOUBLEX, _T("?xll_neg"), _T("NEG"))
+	.Num(_T("x"), _T("is a number."))
+	.Category(_T("XLL"))
+	.FunctionHelp(_T("Return the negative of the argument."))
+);
+double WINAPI xll_neg(double x)
+{
+#pragma XLLEXPORT
+	return -x;
 }
 
 #ifdef _DEBUG
@@ -244,7 +255,6 @@ int xll_test_function(void)
 	return 1;
 }
 static Auto<OpenAfterX> xao_test_function(xll_test_function);
-
 
 #endif // _DEBUG
 

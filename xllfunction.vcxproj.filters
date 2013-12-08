@@ -13,15 +13,24 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="xllrange">
+      <UniqueIdentifier>{e0729fe5-9b05-42d4-a424-5e723e3f916a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="xllfunction.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="xllrange.h">
+      <Filter>xllrange</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="xllfunction.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="xllrange.cpp">
+      <Filter>xllrange</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
