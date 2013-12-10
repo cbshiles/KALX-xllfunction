@@ -6,173 +6,123 @@ Assemble OPERs? RANGE(o0, o1, ...)
 //#include <functional>
 #include "xllrange.h"
 
-namespace xll {
+namespace xll { 
 
-	struct function {
-		// call from call stack
-		OPERX operator()(const LPOPERX *ppa) const { return call(ppa); };
-		// call using multi
-		OPERX operator()(const OPERX& a) const { return call(a); }
-		virtual ~function() { }
-	private:
-		virtual OPERX call(const LPOPERX*) const = 0;
-		virtual OPERX call(const OPERX&) const = 0;
-	};
-	
-	class udf : public function {
-		typedef traits<XLOPERX>::xword xword;
-
-		mutable OPERX arg;
-		std::vector<xword> index;
-		mutable std::vector<LPXLOPER> parg;
+	// base class for all functions
+	class function {
+	protected:
+		std::function<OPERX(const OPERX&)> f;
 	public:
-		udf()
+ 		function()
 		{ }
-		// pass in the address of the first argument on the call stack
-		udf(double regid, const LPOPERX* ppa)
+		function (const std::function<OPERX(const OPERX&)> _f)
+			: f(_f)
+		{ }
+		function(const function&) = default;
+		function& operator=(const function&) = default;
+		virtual ~function()
+		{ }
+
+		OPERX operator()(const OPERX& o) const
 		{
-			const XAddIn<XLOPERX>* pai = XAddIn<XLOPERX>::Find(regid);
-			ensure (pai);
-			arg.resize(pai->Args().Arity() + 1, 1);
-			parg.resize(arg.size());
+			return f(o);
+		}
+	};
+
+	// register id and curried args
+	class bind : public function {
+		typedef traits<XLOPERX>::xword xword;
+		OPERX arg;
+		std::vector<xword> ind;
+	public:
+		bind()
+			: function()
+		{ }
+		bind(double regid, const LPOPERX* ppa)
+		{
+			const XAddIn<XLOPERX>* pai;		
+			ensure (0 != (pai = XAddIn<XLOPERX>::Find(regid)));
+
+			std::vector<xword> ind;
+			OPERX arg(1, pai->Args().Arity() + 1); // regid, args...
 
 			arg[0] = regid;
 			for (xword i = 1; i < arg.size(); ++i, ++ppa) {
 				arg[i] = *(*ppa); // peel args off the call stack
-
 				if (arg[i].xltype == xltypeMissing)
-					index.push_back(i);
+					ind.push_back(i);
 			}
-		}
-		udf(double regid, const OPERX& a)
-		{
-			const XAddIn<XLOPERX>* pai = XAddIn<XLOPERX>::Find(regid);
-			ensure (pai);
-			arg.resize(pai->Args().Arity() + 1, 1);
-			parg.resize(arg.size());
+		
+			f = [arg,ind](const OPERX& a) {
+				ensure (ind.size() == a.size());
 
-			arg[0] = regid;
-			for (xword i = 1; i < arg.size(); ++i) {
-				arg[i] = a[i-1]; // peel args off the call stack
+				OPERX arg_(arg);
 
-				if (arg[i].xltype == xltypeMissing)
-					index.push_back(i);
-			}
-		}
-		udf(const udf&) = default;
-		udf& operator=(const udf&) = default;
-		virtual ~udf()
-		{ }
-
-		xword arity(void) const
-		{
-			return arg.size() - 1;
-		}
-
-		OPERX call(const LPOPERX* ppa) const 
-		{
-			// fill missing args
-			for (xword i = 0; i < index.size(); ++i) {
-				ensure ((*ppa)->xltype != xltypeMissing || !"arity mismatch");
-
-				arg[index[i]] = *(*ppa);
-				++ppa;
-			}
-			ensure ((*ppa)->xltype == xltypeMissing || !"arity mismatch");
-
-			for (xword i = 0; i < parg.size(); ++i)
-				parg[i] = &arg[i];
-
-			LOPERX ret;
-			ensure (xlretSuccess == xll::traits<XLOPERX>::Excelv(xlUDF, &ret, parg.size(), &parg[0]));
-
-			// unfill missing args
-			for (xword i = 0; i < index.size(); ++i) {
-				arg[index[i]] = OPERX(xltype::Missing);
-			}
-
-			return ret;
-		}
-		OPERX call(const OPERX& o) const 
-		{
-			if (arity() == 1 && index.size() == 1) {
-				// handle functions with one arg of type multi
-				arg[1] = o;
-			}
-			else {
-				ensure (o.size() == index.size());
+				std::vector<const LPXLOPERX> parg(arg.size());
 				// fill missing args
-				for (xword i = 0; i < index.size(); ++i) {
-					ensure (o[i].xltype != xltypeMissing || !"arity mismatch");
+				for (xword i = 0; i < ind.size(); ++i) {
+					ensure (a[i].xltype != xltypeMissing || !"arity mismatch");
 
-					arg[index[i]] = o[i];
+					arg_[ind[i]] = a[i];
 				}
-			}
 
-			for (xword i = 0; i < parg.size(); ++i)
-				parg[i] = &arg[i];
+				for (xword i = 0; i < parg.size(); ++i)
+					parg[i] = &arg_[i];
 
-			LOPERX ret;
-			ensure (xlretSuccess == xll::traits<XLOPERX>::Excelv(xlUDF, &ret, parg.size(), &parg[0]));
+				LOPERX ret;
+				ensure (xlretSuccess == xll::traits<XLOPERX>::Excelv(xlUDF, &ret, parg.size(), &parg[0]));
 
-			// unfill missing args
-			for (xword i = 0; i < index.size(); ++i) {
-				arg[index[i]] = OPERX(xltype::Missing);
-			}
-
-			return ret;
-		}
-	
-	};
-
-
-	// function from lambda expression
-	class lambda : public function {
-		const std::function<OPERX(const OPERX&)>& f_;
-	public:
-		lambda(const std::function<OPERX(const OPERX&)>& f)
-			: f_(f)
-		{ }
-		~lambda()
-		{ }
-		OPERX call(const LPOPERX* ppo)
-		{
-			return call(range::grab(ppo));
-		}
-		OPERX call(const OPERX& o)
-		{
-			return f_(o);
+				return ret;
+			};
 		}
 	};
 
-	class add : public function {
-		const function& f;
-		const function& g;
-	public:
-		add(const function& _f, const function& _g)
-			: f(_f), g(_g)
+	struct add : public function {
+		add(const function& f, const function& g)
+		: function([f,g](const OPERX& o) { return OPERX(f(o) + g(o)); })
 		{ }
 		add(const add&) = default;
-		add& operator=(const add&) = delete;
+		add& operator=(const add&) = default;
 		~add()
 		{ }
-		OPERX call(const LPOPERX* ppa) const
-		{ 
-			OPERX x = f(ppa);
-			OPERX y = g(ppa);
-
-			return OPERX(x + y);
-		}
-		OPERX call(const OPERX& a) const
-		{
-			OPERX x = f(a);
-			OPERX y = g(a);
-
-			return OPERX(x + y);
-		}
 	};
-	// sub, mul, div
-//	class compose
+	struct sub : public function {
+		sub(const function& f, const function& g)
+		: function([f,g](const OPERX& o) { return OPERX(f(o) - g(o)); })
+		{ }
+		sub(const sub&) = default;
+		sub& operator=(const sub&) = default;
+		~sub()
+		{ }
+	};
+	struct mul : public function {
+		mul(const function& f, const function& g)
+		: function([f,g](const OPERX& o) { return OPERX(f(o) * g(o)); })
+		{ }
+		mul(const mul&) = default;
+		mul& operator=(const mul&) = default;
+		~mul()
+		{ }
+	};
+	struct div : public function {
+		div(const function& f, const function& g)
+		: function([f,g](const OPERX& o) { return OPERX(f(o) / g(o)); })
+		{ }
+		div(const div&) = default;
+		div& operator=(const div&) = default;
+		~div()
+		{ }
+	};
+	struct neg : public function {
+		neg(const function& f)
+		: function([f](const OPERX& o) { return OPERX(-f(o)); })
+		{ }
+		neg(const neg&) = default;
+		neg& operator=(const neg&) = default;
+		~neg()
+		{ }
+	};
+
 } // xll
 
 /*
