@@ -3,7 +3,7 @@
 Assemble OPERs? RANGE(o0, o1, ...)
 */
 #pragma once
-//#include <functional>
+#include <functional>
 #include "xllrange.h"
 
 namespace xll { 
@@ -79,7 +79,7 @@ namespace xll {
 
 	struct add : public function {
 		add(const function& f, const function& g)
-		: function([f,g](const OPERX& o) { return OPERX(f(o) + g(o)); })
+			: function([f,g](const OPERX& o) { return OPERX(f(o) + g(o)); })
 		{ }
 		add(const add&) = default;
 		add& operator=(const add&) = default;
@@ -88,7 +88,7 @@ namespace xll {
 	};
 	struct sub : public function {
 		sub(const function& f, const function& g)
-		: function([f,g](const OPERX& o) { return OPERX(f(o) - g(o)); })
+			: function([f,g](const OPERX& o) { return OPERX(f(o) - g(o)); })
 		{ }
 		sub(const sub&) = default;
 		sub& operator=(const sub&) = default;
@@ -97,7 +97,7 @@ namespace xll {
 	};
 	struct mul : public function {
 		mul(const function& f, const function& g)
-		: function([f,g](const OPERX& o) { return OPERX(f(o) * g(o)); })
+			: function([f,g](const OPERX& o) { return OPERX(f(o) * g(o)); })
 		{ }
 		mul(const mul&) = default;
 		mul& operator=(const mul&) = default;
@@ -106,7 +106,7 @@ namespace xll {
 	};
 	struct div : public function {
 		div(const function& f, const function& g)
-		: function([f,g](const OPERX& o) { return OPERX(f(o) / g(o)); })
+			: function([f,g](const OPERX& o) { return OPERX(f(o) / g(o)); })
 		{ }
 		div(const div&) = default;
 		div& operator=(const div&) = default;
@@ -115,7 +115,7 @@ namespace xll {
 	};
 	struct neg : public function {
 		neg(const function& f)
-		: function([f](const OPERX& o) { return OPERX(-f(o)); })
+			: function([f](const OPERX& o) { return OPERX(-f(o)); })
 		{ }
 		neg(const neg&) = default;
 		neg& operator=(const neg&) = default;
