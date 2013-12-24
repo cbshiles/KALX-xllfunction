@@ -4,7 +4,7 @@
 using namespace xll;
 
 static AddInX xai_function_bind(
-	FunctionX(XLL_HANDLEX, _T("?xll_function_bind"), _T("XLL.BIND"))
+	FunctionX(XLL_HANDLEX, _T("?xll_function_bind"), CATEGORY_ _T("BIND"))
 	.Arg(XLL_DOUBLEX, _T("RegId"), _T("is the register id of a function."))
 	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument to be curried."))
 	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument to be curried."))
@@ -15,7 +15,7 @@ static AddInX xai_function_bind(
 	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument to be curried."))
 	.Arg(XLL_LPOPERX, _T("Arg"), _T("is an optional argument to be curried."))
 	.Uncalced()
-	.Category(_T("XLL"))
+	.Category(CATEGORY)
 	.FunctionHelp(_T("Return a handle to a function with curried args."))
 	.Documentation(_T(""))
 );
@@ -37,7 +37,7 @@ HANDLEX WINAPI xll_function_bind(double regid, LPOPERX pa)
 }
 
 static AddInX xai_function_call(
-	FunctionX(XLL_LPOPERX, _T("?xll_function_call"), _T("XLL.CALL"))
+	FunctionX(XLL_LPOPERX, _T("?xll_function_call"), CATEGORY_ _T("CALL"))
 	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle returned by XLL.BIND."))
 	.Arg(XLL_LPOPERX, _T("Argument"), _T("is an argument to Function."))
 	.Arg(XLL_LPOPERX, _T("Argument"), _T("is an argument to Function."))
@@ -47,7 +47,7 @@ static AddInX xai_function_call(
 	.Arg(XLL_LPOPERX, _T("Argument"), _T("is an argument to Function."))
 	.Arg(XLL_LPOPERX, _T("Argument"), _T("is an argument to Function."))
 	.Arg(XLL_LPOPERX, _T("Argument"), _T("is an argument to Function."))
-	.Category(_T("XLL"))
+	.Category(CATEGORY)
 	.FunctionHelp(_T("Retun the value of the function using the supplied arguments."))
 	.Documentation(
 		_T("If only one argument of type Multi is passed then assume  ")
@@ -80,10 +80,10 @@ LPOPERX WINAPI xll_function_call(HANDLEX f, LPOPERX pa)
 // building block functions
 
 static AddInX xai_function_index(
-	FunctionX(XLL_HANDLEX, _T("?xll_function_index"), _T("XLL.INDEX"))
+	FunctionX(XLL_HANDLEX, _T("?xll_function_index"), CATEGORY_ _T("INDEX"))
 	.Arg(XLL_LPOPERX, _T("Argument"), _T("is the index value of the function returned."))
 	.Uncalced()
-	.Category(_T("XLL"))
+	.Category(CATEGORY)
 	.FunctionHelp(_T("Return a handle to a index function."))
 );
 HANDLEX WINAPI xll_function_index(const LPOPERX pi)
@@ -105,10 +105,10 @@ HANDLEX WINAPI xll_function_index(const LPOPERX pi)
 }
 
 static AddInX xai_function_constant(
-	FunctionX(XLL_HANDLEX, _T("?xll_function_constant"), _T("XLL.CONSTANT"))
+	FunctionX(XLL_HANDLEX, _T("?xll_function_constant"), CATEGORY_ _T("CONSTANT"))
 	.Arg(XLL_LPOPERX, _T("Argument"), _T("is the constant value of the function returned."))
 	.Uncalced()
-	.Category(_T("XLL"))
+	.Category(CATEGORY)
 	.FunctionHelp(_T("Return a handle to a constant function."))
 );
 HANDLEX WINAPI xll_function_constant(const LPOPERX pc)
@@ -129,9 +129,9 @@ HANDLEX WINAPI xll_function_constant(const LPOPERX pc)
 	return h;
 }
 static AddInX xai_function_identity(
-	FunctionX(XLL_HANDLEX, _T("?xll_function_identity"), _T("XLL.IDENTITY"))
+	FunctionX(XLL_HANDLEX, _T("?xll_function_identity"), CATEGORY_ _T("IDENTITY"))
 	.Uncalced()
-	.Category(_T("XLL"))
+	.Category(CATEGORY)
 	.FunctionHelp(_T("Return a handle to a identity function."))
 );
 HANDLEX WINAPI xll_function_identity()
@@ -152,11 +152,11 @@ HANDLEX WINAPI xll_function_identity()
 }
 
 static AddInX xai_function_add(
-	FunctionX(XLL_HANDLEX, _T("?xll_function_add"), _T("XLL.ADD"))
+	FunctionX(XLL_HANDLEX, _T("?xll_function_add"), CATEGORY_ _T("ADD"))
 	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle to a function."))
 	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle to a function."))
 	.Uncalced()
-	.Category(_T("XLL"))
+	.Category(CATEGORY)
 	.FunctionHelp(_T("Return a handle to the sum of functions."))
 	.Documentation(_T(""))
 );
@@ -180,11 +180,11 @@ HANDLEX WINAPI xll_function_add(HANDLEX f, HANDLEX g)
 	return h;
 }
 static AddInX xai_function_sub(
-	FunctionX(XLL_HANDLEX, _T("?xll_function_sub"), _T("XLL.SUB"))
+	FunctionX(XLL_HANDLEX, _T("?xll_function_sub"), CATEGORY_ _T("SUB"))
 	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle to a function."))
 	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle to a function."))
 	.Uncalced()
-	.Category(_T("XLL"))
+	.Category(CATEGORY)
 	.FunctionHelp(_T("Return a handle to the difference of functions."))
 	.Documentation(_T(""))
 );
@@ -208,11 +208,11 @@ HANDLEX WINAPI xll_function_sub(HANDLEX f, HANDLEX g)
 	return h;
 }
 static AddInX xai_function_mul(
-	FunctionX(XLL_HANDLEX, _T("?xll_function_mul"), _T("XLL.MUL"))
+	FunctionX(XLL_HANDLEX, _T("?xll_function_mul"), CATEGORY_ _T("MUL"))
 	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle to a function."))
 	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle to a function."))
 	.Uncalced()
-	.Category(_T("XLL"))
+	.Category(CATEGORY)
 	.FunctionHelp(_T("Return a handle to the product of functions."))
 	.Documentation(_T(""))
 );
@@ -236,11 +236,11 @@ HANDLEX WINAPI xll_function_mul(HANDLEX f, HANDLEX g)
 	return h;
 }
 static AddInX xai_function_div(
-	FunctionX(XLL_HANDLEX, _T("?xll_function_div"), _T("XLL.DIV"))
+	FunctionX(XLL_HANDLEX, _T("?xll_function_div"), CATEGORY_ _T("DIV"))
 	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle to a function."))
 	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle to a function."))
 	.Uncalced()
-	.Category(_T("XLL"))
+	.Category(CATEGORY)
 	.FunctionHelp(_T("Return a handle to the quotient of functions."))
 	.Documentation(_T(""))
 );
@@ -264,10 +264,10 @@ HANDLEX WINAPI xll_function_div(HANDLEX f, HANDLEX g)
 	return h;
 }
 static AddInX xai_function_neg(
-	FunctionX(XLL_HANDLEX, _T("?xll_function_neg"), _T("XLL.NEG"))
+	FunctionX(XLL_HANDLEX, _T("?xll_function_neg"), CATEGORY_ _T("NEG"))
 	.Arg(XLL_HANDLEX, _T("Function"), _T("is a handle to a function."))
 	.Uncalced()
-	.Category(_T("XLL"))
+	.Category(CATEGORY)
 	.FunctionHelp(_T("Return a handle to the negative of Function."))
 	.Documentation(_T(""))
 );
@@ -294,7 +294,7 @@ HANDLEX WINAPI xll_function_neg(HANDLEX f)
 static AddInX xai_identity(
 	FunctionX(XLL_LPOPERX, _T("?xll_identity"), _T("IDENTITY"))
 	.Arg(XLL_LPOPERX, _T("Argument"), _T("is the argument to be returned."))
-	.Category(_T("XLL"))
+	.Category(CATEGORY)
 	.FunctionHelp(_T("Return Argument unmodified."))
 );
 LPOPERX WINAPI xll_identity(LPOPERX px)
@@ -306,7 +306,7 @@ static AddInX xai_add(
 	FunctionX(XLL_DOUBLEX, _T("?xll_add"), _T("ADD"))
 	.Num(_T("x"), _T("is the first number of the sum."))
 	.Num(_T("y"), _T("is the second number of the sum."))
-	.Category(_T("XLL"))
+	.Category(CATEGORY)
 	.FunctionHelp(_T("Return the sum of the arguments"))
 );
 double WINAPI xll_add(double x, double y)
@@ -318,7 +318,7 @@ static AddInX xai_sub(
 	FunctionX(XLL_DOUBLEX, _T("?xll_sub"), _T("SUB"))
 	.Num(_T("x"), _T("is the first number of the difference."))
 	.Num(_T("y"), _T("is the second number of the difference."))
-	.Category(_T("XLL"))
+	.Category(CATEGORY)
 	.FunctionHelp(_T("Return the difference of the arguments"))
 );
 double WINAPI xll_sub(double x, double y)
@@ -330,7 +330,7 @@ static AddInX xai_mul(
 	FunctionX(XLL_DOUBLEX, _T("?xll_mul"), _T("MUL"))
 	.Num(_T("x"), _T("is the first number of the product."))
 	.Num(_T("y"), _T("is the second number of the product."))
-	.Category(_T("XLL"))
+	.Category(CATEGORY)
 	.FunctionHelp(_T("Return the product of the arguments"))
 );
 double WINAPI xll_mul(double x, double y)
@@ -342,7 +342,7 @@ static AddInX xai_div(
 	FunctionX(XLL_DOUBLEX, _T("?xll_div"), _T("DIV"))
 	.Num(_T("x"), _T("is the first number of the quotient."))
 	.Num(_T("y"), _T("is the second number of the quotient."))
-	.Category(_T("XLL"))
+	.Category(CATEGORY)
 	.FunctionHelp(_T("Return the quotient of the arguments"))
 );
 double WINAPI xll_div(double x, double y)
@@ -353,7 +353,7 @@ double WINAPI xll_div(double x, double y)
 static AddInX xai_neg(
 	FunctionX(XLL_DOUBLEX, _T("?xll_neg"), _T("NEG"))
 	.Num(_T("x"), _T("is a number."))
-	.Category(_T("XLL"))
+	.Category(CATEGORY)
 	.FunctionHelp(_T("Return the negative of the argument."))
 );
 double WINAPI xll_neg(double x)
@@ -379,9 +379,18 @@ void xll_test_bind()
 	a[1] = OPERX(xltype::Missing);
 	a[2] = OPERX(xltype::Missing);
 	auto f0 = bind(xai_mul.RegisterId(), pa);
+
+	OPERX o;
 	a[0] = 2;
 	a[1] = 3;
-	OPERX o = f0(range::grab(pa));
+	o = f0.call(pa);
+	ensure (o == 6);
+	OPERX b(1,2);
+	b[0] = 2;
+	b[1] = 3;
+	o = f0.call(b);
+	ensure (o == 6);
+	o = f0(range::grab(pa));
 	ensure (o == 6);
 
 	a[0] = OPERX(4);

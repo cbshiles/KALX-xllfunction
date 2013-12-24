@@ -33,4 +33,7 @@
       <Filter>xllrange</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="NOTES.txt" />
+  </ItemGroup>
 </Project>

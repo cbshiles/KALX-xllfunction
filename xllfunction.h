@@ -1,10 +1,12 @@
 // function.h - function: OPER^n -> OPER
-/*
-Assemble OPERs? RANGE(o0, o1, ...)
-*/
+// use BIND to curry arguments for CALL
+// use PICK to rearrange arguments
 #pragma once
 #include <functional>
 #include "xllrange.h"
+
+#define CATEGORY _T("XLL")
+#define CATEGORY_ CATEGORY _T(".")
 
 namespace xll { 
 
@@ -23,6 +25,7 @@ namespace xll {
 		virtual ~function()
 		{ }
 
+		// call function
 		OPERX operator()(const OPERX& o) const
 		{
 			return f(o);
@@ -33,6 +36,7 @@ namespace xll {
 	class bind : public function {
 		typedef traits<XLOPERX>::xword xword;
 		OPERX arg;
+		std::vector<LPXLOPERX> parg;
 		std::vector<xword> ind;
 	public:
 		bind()
@@ -43,16 +47,21 @@ namespace xll {
 			const XAddIn<XLOPERX>* pai;		
 			ensure (0 != (pai = XAddIn<XLOPERX>::Find(regid)));
 
-			std::vector<xword> ind;
-			OPERX arg(1, pai->Args().Arity() + 1); // regid, args...
+			parg.resize(1 + pai->Args().Arity());
+			arg.resize(1, 1 + pai->Args().Arity()); // regid, args...
 
 			arg[0] = regid;
-			for (xword i = 1; i < arg.size(); ++i, ++ppa) {
+			parg[0] = &arg[0];
+			for (xword i = 1; i < parg.size(); ++i, ++ppa) {
 				arg[i] = *(*ppa); // peel args off the call stack
+				parg[i] = &arg[i];
 				if (arg[i].xltype == xltypeMissing)
 					ind.push_back(i);
 			}
-		
+			f = [this](const OPERX& a) {
+				return call(a);
+			};
+		/*
 			f = [arg,ind](const OPERX& a) {
 				ensure (ind.size() == a.size());
 
@@ -74,6 +83,31 @@ namespace xll {
 
 				return ret;
 			};
+		*/
+		}
+		// supply missing args off call stack
+		OPERX call(LPOPERX* ppa) 
+		{
+			for (xword i = 0; i < ind.size(); ++i) {
+				parg[ind[i]] = *ppa++;
+			}
+
+			LOPERX ret;
+			ensure (xlretSuccess == xll::traits<XLOPERX>::Excelv(xlUDF, &ret, parg.size(), &parg[0]));
+
+			return ret;
+		}
+		// supply missing args from a
+		OPERX call(const OPERX& a) 
+		{
+			for (xword i = 0; i < ind.size(); ++i) {
+				parg[ind[i]] = const_cast<LPOPERX>(&a[i]);
+			}
+
+			LOPERX ret;
+			ensure (xlretSuccess == xll::traits<XLOPERX>::Excelv(xlUDF, &ret, parg.size(), &parg[0]));
+
+			return ret;
 		}
 	};
 
