@@ -2,105 +2,87 @@
 // use BIND to curry arguments for CALL
 // use PICK to rearrange arguments
 #pragma once
+//#define EXCEL12
 #include <functional>
+#include <memory>
 #include "xllrange.h"
 
 #define CATEGORY _T("XLL")
 #define CATEGORY_ CATEGORY _T(".")
 
-namespace xll { 
+#define XLL_ARGSMAX 8 // for now!!!
 
-	// base class for all functions
-	class function {
-	protected:
-		std::function<OPERX(const OPERX&)> f;
-	public:
- 		function()
-		{ }
-		function (const std::function<OPERX(const OPERX&)> _f)
-			: f(_f)
-		{ }
-		function(const function&) = default;
-		function& operator=(const function&) = default;
-		virtual ~function()
-		{ }
-
-		// call function
-		OPERX operator()(const OPERX& o) const
-		{
-			return f(o);
-		}
-	};
+namespace xll {
 
 	// register id and curried args
-	class bind : public function {
+	class bind {
 		typedef traits<XLOPERX>::xword xword;
-		OPERX arg;
-		std::vector<LPXLOPERX> parg;
+		OPERX regid_;
 		std::vector<xword> ind;
+		std::vector<OPERX> arg;
+		mutable std::vector<LPXLOPER> parg;
+		const XAddIn<XLOPERX>* pai;
 	public:
 		bind()
-			: function()
 		{ }
-		bind(double regid, const LPOPERX* ppa)
+		bind(const OPERX& regid, const LPXLOPERX* ppa)
+			: regid_(regid), pai(0)
 		{
-			const XAddIn<XLOPERX>* pai;		
-			ensure (0 != (pai = XAddIn<XLOPERX>::Find(regid)));
+			xword nargs = XLL_ARGSMAX;
+			pai = XAddIn<XLOPERX>::Find(regid);
+			if (pai) {
+				regid_ = pai->RegisterId();
+				nargs = pai->Args().Arity();
+			}
 
-			parg.resize(1 + pai->Args().Arity());
-			arg.resize(1, 1 + pai->Args().Arity()); // regid, args...
+			parg.resize(1 + nargs);
+			arg.resize(1 + nargs);
 
-			arg[0] = regid;
-			parg[0] = &arg[0];
-			for (xword i = 1; i < parg.size(); ++i, ++ppa) {
+			parg[0] = &regid_;
+
+			for (xword i = 1; i <= nargs; ++i, ++ppa) {
 				arg[i] = *(*ppa); // peel args off the call stack
 				parg[i] = &arg[i];
-				if (arg[i].xltype == xltypeMissing)
+				if (arg[i].xltype == xltypeMissing) {
 					ind.push_back(i);
-			}
-			f = [this](const OPERX& a) {
-				return call(a);
-			};
-		/*
-			f = [arg,ind](const OPERX& a) {
-				ensure (ind.size() == a.size());
-
-				OPERX arg_(arg);
-
-				std::vector<const LPXLOPERX> parg(arg.size());
-				// fill missing args
-				for (xword i = 0; i < ind.size(); ++i) {
-					ensure (a[i].xltype != xltypeMissing || !"arity mismatch");
-
-					arg_[ind[i]] = a[i];
 				}
-
-				for (xword i = 0; i < parg.size(); ++i)
-					parg[i] = &arg_[i];
-
-				LOPERX ret;
-				ensure (xlretSuccess == xll::traits<XLOPERX>::Excelv(xlUDF, &ret, parg.size(), &parg[0]));
-
-				return ret;
-			};
-		*/
+			}
 		}
+		bind(const bind&) = default;
+		bind& operator=(const bind&) = default;
+		~bind()
+		{ }
+
 		// supply missing args off call stack
-		OPERX call(LPOPERX* ppa) 
+		OPERX call(LPXLOPERX* ppa) const
 		{
-			for (xword i = 0; i < ind.size(); ++i) {
-				parg[ind[i]] = *ppa++;
+			LOPERX ret;
+
+			for (xword i = 0; i < ind.size() && (*ppa)->xltype != xltypeMissing; ++i, ++ppa) {
+				parg[ind[i]] = *ppa;
 			}
 
-			LOPERX ret;
-			ensure (xlretSuccess == xll::traits<XLOPERX>::Excelv(xlUDF, &ret, parg.size(), &parg[0]));
+			if (pai) {
+				ensure (xlretSuccess == xll::traits<XLOPERX>::Excelv(xlUDF, &ret, 1 + ind.size(), &parg[0]));
+			}
+			else {
+				// xlUDF fails for built-ins???
+				ensure (xlretSuccess == xll::traits<XLOPERX>::Excel(static_cast<int>(parg[0]->val.num), &ret, ind.size(), 
+					parg[1], parg[2], parg[3], parg[4], parg[5], parg[6], parg[7], parg[8]));
+			}
+
+			// restore const promise
+			for (xword i = 0; i < ind.size(); ++i, ++ppa) {
+				parg[ind[i]] = const_cast<LPOPERX>(&arg[ind[i]]);
+			}
 
 			return ret;
 		}
+		/*
 		// supply missing args from a
-		OPERX call(const OPERX& a) 
+		OPERX call(const OPERX& a) const
 		{
-			for (xword i = 0; i < ind.size(); ++i) {
+			for (xword i = 0; i < static_cast<xword>(ind.size()); ++i) {
 				parg[ind[i]] = const_cast<LPOPERX>(&a[i]);
 			}
 
@@ -109,8 +91,9 @@ namespace xll {
 
 			return ret;
 		}
+		*/
 	};
-
+/*
 	struct add : public function {
 		add(const function& f, const function& g)
 			: function([f,g](const OPERX& o) { return OPERX(f(o) + g(o)); })
@@ -156,26 +139,6 @@ namespace xll {
 		~neg()
 		{ }
 	};
-
+*/
 } // xll
 
-/*
-namespace detail {
-	template<class Op>
-	inline xll::function operator_op(Op op, const xll::function& f, const xll::function& g)
-	{
-		return xll::function([&op, &f,&g](const OPERX& x) { return OPERX(op(f(x).val.num, g(x).val.num)); });
-	}
-}
-
-#define OPERATOR_OP(op,fun) \
-inline xll::function operator op (const xll::function& f, const xll::function& g) \
-	{ return detail::operator_op(fun<double>(), f, g); }
-
-OPERATOR_OP(+, std::plus)
-OPERATOR_OP(-, std::minus)
-OPERATOR_OP(*, std::multiplies)
-OPERATOR_OP(/, std::divides)
-
-#undef OPERATOR_OP
-*/

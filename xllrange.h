@@ -1,5 +1,6 @@
 // xllrange.h - range functions
 #pragma once
+//#define EXCLE12
 #include "../xll8/xll/xll.h"
 
 namespace xll {
@@ -12,8 +13,8 @@ namespace xll {
 			return sizeof...(os) == 0 ? o : o.push_back(gather(os)); // !!! handle o.xltype == xltypeMulti
 		}
 
-		// reposition arguments
-		inline OPERX index(const OPERX& o, const OPERX& i)
+		// pick opers from o based on index i
+		inline OPERX pick(const OPERX& o, const OPERX& i)
 		{
 			typedef traits<XLOPERX>::xword xword;
 
@@ -30,7 +31,6 @@ namespace xll {
 		{
 			OPERX o;
 
-			//???use XLOPER and just hook up pointers???
 			while ((*ppo)->xltype != xltypeMissing) {
 				if ((*ppo)->xltype == xltypeMulti) {
 					o.push_back(OPERX(xltype::Missing));// push_back(new handle<OPER>(*(*pro))); ???
@@ -91,7 +91,7 @@ namespace xll {
 			ensure (o.xltype == xltypeMulti);
 			ensure (o.rows() == 2);
 		}
-		object(OPERX& k, OPER& v)
+		object(OPERX& k, OPERX& v)
 			: pk_(&k[0]), pv_(&v[0]), n_(k.size())
 		{
 			ensure (k.size() == v.size());

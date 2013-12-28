@@ -88,7 +88,13 @@
     <ClInclude Include="xllrange.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="FileOpenDialog.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="xllbind.cpp" />
+    <ClCompile Include="xllcall.cpp" />
     <ClCompile Include="xllfunction.cpp" />
+    <ClCompile Include="xllnames.cpp" />
     <ClCompile Include="xllrange.cpp" />
   </ItemGroup>
   <ItemGroup>
