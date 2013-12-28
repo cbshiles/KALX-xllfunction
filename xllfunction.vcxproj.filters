@@ -38,9 +38,6 @@
     <ClCompile Include="xllcall.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FileOpenDialog.cpp">
-      <Filter>xllrange</Filter>
-    </ClCompile>
     <ClCompile Include="xllnames.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
