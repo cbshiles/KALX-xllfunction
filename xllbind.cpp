@@ -58,7 +58,7 @@ HANDLEX WINAPI xll_function_bind(LPOPERX func, const LPXLOPERX pa /*, up to 32 t
 	handlex h;
 
 	try {
-		handle<xll::bind> ph(new xll::bind(*func, &pa));
+		handle<xll::function> ph(new xll::bind(*func, &pa));
 
 		h = ph.get();
 	}

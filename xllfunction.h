@@ -14,11 +14,26 @@
 
 namespace xll {
 
+	class function {
+	public:
+		function()
+		{ }
+		virtual ~function() 
+		{ }
+		OPERX operator()(const LPXLOPERX* ppa) const
+		{
+			return call(ppa);
+		}
+	private:
+		virtual OPERX call(const LPXLOPERX*) const = 0;
+	};
+
 	// register id and curried args
-	class bind {
+	class bind : public function {
 		typedef traits<XLOPERX>::xword xword;
 		OPERX regid_;
 		std::vector<xword> ind;
+		xword nargs;
 		std::vector<OPERX> arg;
 		mutable std::vector<LPXLOPER> parg;
 		const XAddIn<XLOPERX>* pai;
@@ -26,9 +41,8 @@ namespace xll {
 		bind()
 		{ }
 		bind(const OPERX& regid, const LPXLOPERX* ppa)
-			: regid_(regid), pai(0)
+			: regid_(regid), pai(0), nargs(XLL_ARGSMAX)
 		{
-			xword nargs = XLL_ARGSMAX;
 			pai = XAddIn<XLOPERX>::Find(regid);
 			if (pai) {
 				regid_ = pai->RegisterId();
@@ -43,7 +57,7 @@ namespace xll {
 			for (xword i = 1; i <= nargs; ++i, ++ppa) {
 				arg[i] = *(*ppa); // peel args off the call stack
 				parg[i] = &arg[i];
-				if (arg[i].xltype == xltypeMissing) {
+				if ((*ppa)->xltype == xltypeMissing) {
 					ind.push_back(i);
 				}
 			}
@@ -54,7 +68,7 @@ namespace xll {
 		{ }
 
 		// supply missing args off call stack
-		OPERX call(LPXLOPERX* ppa) const
+		OPERX call(const LPXLOPERX* ppa) const
 		{
 			LOPERX ret;
 
@@ -63,11 +77,15 @@ namespace xll {
 			}
 
 			if (pai) {
-				ensure (xlretSuccess == xll::traits<XLOPERX>::Excelv(xlUDF, &ret, 1 + ind.size(), &parg[0]));
+				ensure (xlretSuccess == xll::traits<XLOPERX>::Excelv(xlUDF, &ret, parg.size(), &parg[0]));
 			}
 			else {
 				// xlUDF fails for built-ins???
-				ensure (xlretSuccess == xll::traits<XLOPERX>::Excel(static_cast<int>(parg[0]->val.num), &ret, ind.size(), 
+				xword n = XLL_ARGSMAX;
+				while (parg[n]->xltype == xltypeMissing)
+					--n;
+
+				ensure (xlretSuccess == xll::traits<XLOPERX>::Excel(static_cast<int>(parg[0]->val.num), &ret, n, 
 					parg[1], parg[2], parg[3], parg[4], parg[5], parg[6], parg[7], parg[8]));
 			}
 

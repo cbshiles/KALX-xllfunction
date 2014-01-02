@@ -60,9 +60,9 @@ LPOPERX WINAPI xll_function_call(HANDLEX f, LPXLOPERX pa)
 	static OPERX y;
 
 	try {
-		handle<xll::bind> pf(f);
+		handle<xll::function> pf(f);
 
-		y = pf->call(&pa);
+		y = (*pf)(&pa);
 	}
 	catch (const std::exception& ex) {
 		XLL_ERROR(ex.what());
