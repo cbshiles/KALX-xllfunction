@@ -7,6 +7,7 @@ int xll_define_function_names(void)
 {
 #pragma XLLEXPORT
 	try {
+		OPERX o;
 		Excel<XLOPER>(xlcDefineName, OPER("xlfCount"), OPER(xlfCount));
 		Excel<XLOPER>(xlcDefineName, OPER("xlfIsna"), OPER(xlfIsna));
 		Excel<XLOPER>(xlcDefineName, OPER("xlfIserror"), OPER(xlfIserror));
@@ -597,3 +598,18 @@ int xll_define_function_names(void)
 }
 //static Auto<OpenAfter> xao_define_function_names(xll_define_function_names);
 static AddIn xai_define_function_names("?xll_define_function_names", "DFN");
+
+int xll_set_names(void)
+{
+	try {
+		Excel<XLOPER>(xlfSetName, OPER("xlfEncodeurl"), OPER(xlfEncodeurl));
+	}
+	catch (const std::exception& ex) {
+		XLL_ERROR(ex.what());
+
+		return 0;
+	}
+
+	return 1;
+}
+static Auto<Open> xao_set_names(xll_set_names);

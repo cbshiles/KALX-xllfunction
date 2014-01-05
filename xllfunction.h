@@ -1,18 +1,27 @@
-// function.h - function: OPER^n -> OPER
-// use BIND to curry arguments for CALL
-// use PICK to rearrange arguments
+// function.h - function: OPER -> OPER
+/*
+XLL.BIND(Function, Range) takes two arguments where size(Range) = arity of Function
+Use XLL.MISSING() to specify non curried arguments
+XLL.CALL(Function, Args...) can take one arg range, or a list of arguments
+*/
 #pragma once
 //#define EXCEL12
 #include <functional>
 #include <memory>
-#include "xllrange.h"
+#include "../xll8/xll/xll.h"
+//#include "xllrange.h"
 
 #define CATEGORY _T("XLL")
 #define CATEGORY_ CATEGORY _T(".")
 
-#define XLL_ARGSMAX 8 // for now!!!
+#define XLL_ARGSMAX 8
 
 namespace xll {
+
+	inline bool is_missing(const OPERX& o)
+	{
+		return o.xltype == xltypeMissing || o.xltype == xltypeNum && o.val.num == 0 && copysign(1, o.val.num) < 0;
+	}
 
 	class function {
 	public:
@@ -20,47 +29,61 @@ namespace xll {
 		{ }
 		virtual ~function() 
 		{ }
-		OPERX operator()(const LPXLOPERX* ppa) const
+		OPERX operator()(const LPOPERX* ppa) const
 		{
 			return call(ppa);
 		}
 	private:
-		virtual OPERX call(const LPXLOPERX*) const = 0;
+		virtual OPERX call(const LPOPERX*) const = 0;
 	};
+
+	// arbitrary list of arguments that can be converted to OPERs
+	template<class ...A>
+	inline OPERX reify(const xll::function& f, const A& ...as)
+	{
+		std::vector<OPERX> a = {OPERX(as...)};
+		a.push_back(OPERX(xltype::Missing));
+		std::vector<LPOPERX> ppa(a.size());
+
+		for (size_t i = 0; i < a.size(); ++i)
+			ppa[i] = &a[i];
+
+		return f(&ppa[0]);
+	}
 
 	// register id and curried args
 	class bind : public function {
-		typedef traits<XLOPERX>::xword xword;
-		OPERX regid_;
+		typedef xll::traits<XLOPERX>::xword xword;
 		std::vector<xword> ind;
-		xword nargs;
 		std::vector<OPERX> arg;
 		mutable std::vector<LPXLOPER> parg;
-		const XAddIn<XLOPERX>* pai;
+		const xll::XAddIn<XLOPERX>* pai;
 	public:
 		bind()
 		{ }
-		bind(const OPERX& regid, const LPXLOPERX* ppa)
-			: regid_(regid), pai(0), nargs(XLL_ARGSMAX)
+		bind(const OPERX& regid, const OPERX& a)
+			: arg(1 + a.size()), parg(1 + a.size()), pai(xll::XAddIn<XLOPERX>::Find(regid))
 		{
-			pai = XAddIn<XLOPERX>::Find(regid);
 			if (pai) {
-				regid_ = pai->RegisterId();
-				nargs = pai->Args().Arity();
+				ensure (a.size() == pai->Args().Arity());
+				arg[0] = pai->RegisterId();
 			}
+			else {
+				arg[0] = regid;
+			}
+			parg[0] = &arg[0];
 
-			parg.resize(1 + nargs);
-			arg.resize(1 + nargs);
-
-			parg[0] = &regid_;
-
-			for (xword i = 1; i <= nargs; ++i, ++ppa) {
-				arg[i] = *(*ppa); // peel args off the call stack
-				parg[i] = &arg[i];
-				if ((*ppa)->xltype == xltypeMissing) {
+			for (xword i = 1; i < arg.size(); ++i) {
+				if (is_missing(a[i - 1])) {
 					ind.push_back(i);
+					arg[i] = OPERX(xltype::Missing);
 				}
+				else {
+					arg[i] = a[i-1];
+				}
+				parg[i] = &arg[i];
 			}
+
 		}
 		bind(const bind&) = default;
 		bind& operator=(const bind&) = default;
@@ -68,11 +91,11 @@ namespace xll {
 		{ }
 
 		// supply missing args off call stack
-		OPERX call(const LPXLOPERX* ppa) const
+		OPERX call(const LPOPERX* ppa) const
 		{
 			LOPERX ret;
 
-			for (xword i = 0; i < ind.size() && (*ppa)->xltype != xltypeMissing; ++i, ++ppa) {
+			for (xword i = 0; i < ind.size() && ppa && *ppa && (*ppa)->xltype != xltypeMissing; ++i, ++ppa) {
 				parg[ind[i]] = *ppa;
 			}
 
@@ -81,12 +104,7 @@ namespace xll {
 			}
 			else {
 				// xlUDF fails for built-ins???
-				xword n = XLL_ARGSMAX;
-				while (parg[n]->xltype == xltypeMissing)
-					--n;
-
-				ensure (xlretSuccess == xll::traits<XLOPERX>::Excel(static_cast<int>(parg[0]->val.num), &ret, n, 
-					parg[1], parg[2], parg[3], parg[4], parg[5], parg[6], parg[7], parg[8]));
+				ensure (xlretSuccess == xll::traits<XLOPERX>::Excelv(static_cast<int>(parg[0]->val.num), &ret, parg.size() - 1, &parg[1]));
 			}
 
 			// restore const promise
@@ -96,20 +114,6 @@ namespace xll {
 
 			return ret;
 		}
-		/*
-		// supply missing args from a
-		OPERX call(const OPERX& a) const
-		{
-			for (xword i = 0; i < static_cast<xword>(ind.size()); ++i) {
-				parg[ind[i]] = const_cast<LPOPERX>(&a[i]);
-			}
-
-			LOPERX ret;
-			ensure (xlretSuccess == xll::traits<XLOPERX>::Excelv(xlUDF, &ret, parg.size(), &parg[0]));
-
-			return ret;
-		}
-		*/
 	};
 /*
 	struct add : public function {
